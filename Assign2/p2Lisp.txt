@@ -1,0 +1,49 @@
+;;;removeNILTop
+;;;Parameters: List L
+;;;Purpose: Function is passed a list and removes NIL at the top level
+(defun removeNILTop (L)
+        (COND ( ( NULL L ) NIL )
+        (  (NULL (CAR L)) (removeNILTop(CDR L)) )
+             ( T (CONS (CAR L) (removeNILTop (CDR L)) ) )
+        )
+)
+
+;;;removeNILMost
+;;;Parameters: List L
+;;;Purpose: Function is passed a list and removes NIL at any level
+(defun removeNILMost (L)
+        (COND (( NULL L ) '())
+		( (ATOM (CAR L) )
+		(  COND (  (NULL (CAR L)) (removeNILMost (CDR L)) )
+                (T (CONS (CAR L) (removeNILMost (CDR L)) ) ) )
+        )
+        (T (CONS (removeNILMost(CAR L)) (removeNILMost(CDR L)) ) )
+     )
+)
+
+;;;reverseTop
+;;;Parameters: L
+;;;Purpose: Function is passed a list and returns a reversed list of the top-level entries
+(defun reverseTop (L)
+        (COND( (NULL L) NIL)
+        (T (APPEND (reverseTop (CDR L)) (LIST (CAR L)) ) )
+        )
+)
+
+;;;reverseAll
+;;;Parameters: List L
+;;;Purpose: Function is passed a list and returns a reversed list at all levels
+(defun reverseAll (L)
+        (if (ATOM L)
+        L
+        (APPEND (reverseAll (CDR L)) (LIST (reverseAll (CAR L)) ) )
+       )
+)
+
+;;;palindrome
+;;;Parameters: List L
+;;;Purpose: Function is passed a list and returns T if the list is a palindrome. Otherwise, it returns NIL.
+(defun palindrome (L)
+        (EQUAL L (reverseTop L)
+   )
+)
