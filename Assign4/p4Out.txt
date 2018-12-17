@@ -1,0 +1,489 @@
+gnu021:~/cs3723/assign4> clisp
+  i i i i i i i       ooooo    o        ooooooo   ooooo   ooooo
+  I I I I I I I      8     8   8           8     8     o  8    8
+  I  \ `+' /  I      8         8           8     8        8    8
+   \  `-+-'  /       8         8           8      ooooo   8oooo
+    `-__|__-'        8         8           8           8  8
+        |            8     o   8           8     o     8  8
+  ------+------       ooooo    8oooooo  ooo8ooo   ooooo   8
+
+Welcome to GNU CLISP 2.49 (2010-07-07) <http://clisp.cons.org/>
+
+Copyright (c) Bruno Haible, Michael Stoll 1992, 1993
+Copyright (c) Bruno Haible, Marcus Daniels 1994-1997
+Copyright (c) Bruno Haible, Pierpaolo Bernardi, Sam Steingold 1998
+Copyright (c) Bruno Haible, Sam Steingold 1999-2000
+Copyright (c) Sam Steingold, Bruno Haible 2001-2010
+
+Type :h and hit Enter for context help.
+
+[1]> (load "p4LispDef.txt" :echo T :print T)
+;; Loading file p4LispDef.txt ...
+;;; useful functions for LISP natural language parsing program
+
+;;; Set up the parse-obj and word-dict
+(setf parse-obj (MAKE-HASH-TABLE))
+#S(HASH-TABLE :TEST FASTHASH-EQL)
+
+(setf word-dict (MAKE-HASH-TABLE))
+#S(HASH-TABLE :TEST FASTHASH-EQL)
+
+(setf table-ht  (MAKE-HASH-TABLE))
+#S(HASH-TABLE :TEST FASTHASH-EQL)
+
+
+
+;;; processRequest 
+;;;    Parameters:
+;;;       request - a list of words making a request
+;;;    Purpose:
+;;;       - Sets up necessary information (see below) and invokes the student's checkRequest
+;;;         function.  
+;;;       - Since the student's checkRequest sets the parts of speech, processRequest prints
+;;;         those parts of speeach.
+;;;       - Returns T if the request is a valid request.  Otherwise, NIL is returned.
+;;;    Notes:
+;;;       - Sets the parse-obj hash table to contain the request
+;;;       - Sets the cursor position to zero.
+;;;       - Uses resetPartsOfSpeech to reset the values of each part of speech.
+;;;       - Prints the request
+;;;       - Invokes checkRequest to check for valid syntax and prints
+;;;         the result.
+;;;       - Prints the value for each part of speech
+;;;       - Invokes makeDBRequest to generate a database request from the parts of speeach
+;;;    Notes:
+;;;       - Requests will not contain punctuation since
+;;;             -- commas have a meaning in Common LISP associated with backquote
+;;;             -- periods are used for dotted pairs
+;;;    
+
+(defun processRequest(request)
+    (PROG (result)
+        ;;; Save the request in parse-obj.
+        (putp 'request parse-obj request) 
+        ;;; Set the cursor position to 0.
+        (putp 'cursor parse-obj 0)
+ 
+        ;;; reset the parts of speech to NIL
+        (resetPartsOfSpeech parse-obj 'verb 'directObj 'prep 'indirectObj 'QualIndirectPrep 'QualIndirectObj)
+        (resetPartsOfSpeech parse-obj 'Comparator 'NotQual 'QualPrep 'QualValue)
+        
+        (format T "~% ******************************************************************")
+        (format T "~%  ~a" request)
+        (setf result (checkRequest parse-Obj))
+        (format T "~%    checkRequest returned ~a" result)
+        (format T "~%    verb= ~a" (getp 'verb parse-obj))
+        (format T "~%    directObj= ~a" (getp 'directObj parse-obj))
+        (format T "~%    prep= ~a" (getp 'prep parse-obj))
+        (format T "~%    indirectObj= ~a" (getp 'indirectObj parse-obj))
+        
+        ;;; if we have a qual indirect, show it
+        (cond ((or  (getp 'QualIndirectPrep parse-obj)
+                    (getp 'QualIndirectObj parse-obj))
+                (format T "~%    QualIndirectPrep= ~a" (getp 'QualIndirectPrep parse-obj))
+                (format T "~%    QualIndirectObj= ~a" (getp 'QualIndirectObj parse-obj))
+        ))
+        ;;; if we have qual, show it
+        (cond ((or  (getp 'Comparator parse-obj)
+                    (getp 'NotQual parse-obj)
+                    (getp 'QualPrep parse-obj)
+                    (getp 'QualValue parse-obj))    
+                (if (getp 'NotQual parse-obj)
+                     (format T "~%    NotQual = ~a" (getp 'NotQual parse-obj)))
+                (format T "~%    Comparator= ~a" (getp 'Comparator parse-obj))
+                (format T "~%    QualPrep= ~a" (getp 'QualPrep parse-obj))
+                (format T "~%    QualValue= ~a" (getp 'QualValue parse-obj))
+        ))
+        (if (not result) (return result))
+        
+        ;;; see if doing extra credit, return if not
+        (if (NOT doingExtra)
+            (return result))
+        
+        ;;; generate the SQL and show that SQL query
+        (setf query (genSQL parse-Obj))
+        (format T "~%    DBRequest= ~a" query)
+        
+        (return result) ) )
+PROCESSREQUEST
+
+ 
+;;; putp 
+;;;    Parameters:
+;;;       symbol   - symbol to be given the property value
+;;;       ht       - hash table to store the symbol and its property value
+;;;       value    - the property value
+;;;    Purpose:
+;;;       stores the property value for the symbol in the specified hash table
+;;;    Notes:
+;;;       If the symbol isn't an ATOM, putp breaks execution with an ERROR.
+;;;    Example Usage:
+;;;       (putp 'prep parse preposition)
+;;;       (putp word word-dict partOfSpeech)
+
+(defun putp (symbol ht value)
+    (if (ATOM symbol)
+        (setf (gethash symbol ht) value)
+        (ERROR "~s is not a valid symbol for putp" symbol)
+    )
+)
+PUTP
+
+    
+;;; getp 
+;;;    Parameters:
+;;;       symbol   - symbol about which we want its property value
+;;;       ht       - hash table which stores the symbol and its property value
+;;;    Purpose:
+;;;       Returns the property value for the symbol in the specified hash table
+;;;       If not found, it returns NIL.
+;;;    Example Usage:
+;;;       (getp word word-dict)  would return the partOfSpeech for that word
+;;;       (getp 'request parse-obj)  would return the original request from the parse-obj.
+(defun getp (symbol ht)
+     (gethash symbol ht) )
+GETP
+
+     
+;;; getCursor 
+;;;    Parameters:
+;;;       parse - the parse object containing a request, cursor position, and
+;;;               value for each part of speech
+;;;    Purpose:
+;;;       returns the current cursor position (relative to zero)
+(defun getCursor (parse)
+    (getp 'cursor parse) )
+GETCURSOR
+
+
+;;; setCursor 
+;;;    Parameters:
+;;;       parse - the parse object containing a request, cursor position, and
+;;;               value for each part of speech
+;;;       cursorPosition - new cursor position
+;;;    Purpose:
+;;;       Sets the value of the cursor position (relative to zero) in the
+;;;       parse object
+;;;    Notes:
+;;;       If the cursorPosition isn't a numeric, setCursor breaks execution 
+;;;       with an ERROR.
+(defun setCursor (parse cursorPosition)
+    (if (numberp cursorPosition)
+        (putp 'cursor parse cursorPosition)
+        (ERROR "~s is not a numeric argument for setCursor" cursorPosition)
+    )
+)
+SETCURSOR
+
+
+;;; getToken
+;;;    Parameters:
+;;;       parse - the parse object containing a request, cursor position, and
+;;;               value for each part of speech
+;;;    Purpose:
+;;;       returns the next token from the request.  If there are no more
+;;;       tokens, it returns NIL.
+;;;    Notes:
+;;;       This modifies the cursor position after getting the current token
+;;;       at the old position.
+    
+(defun getToken (parse)
+    (prog (temp)
+        (setf temp (nth (getp  'cursor parse) (getp  'request parse))) 
+        (setCursor parse (1+ (getp 'cursor parse))) 
+        (return temp) ) )
+GETTOKEN
+
+
+
+
+ ;;; defaulting doingExtra to NIL
+ (setf doingExtra NIL)
+NIL
+
+ 
+ 
+ 
+;; Loaded file p4LispDef.txt
+T
+[2]> (load "p4Lisp.txt" :echo T :print T)
+;; Loading file p4Lisp.txt ...
+;;;checkRequest
+;;;Parameters:
+;;;     parse: Parse-object populated with a request.
+;;;Purpose:
+;;;     This function checks for a valid request according to the program's grammar standards. If the request is valid, T is returned. If not, NIL is returned. Also saves the identified parts of speech.
+
+(defun checkRequest (parse)
+    (PROG (token)
+        (setf token (getToken parse))
+            (if (isa token 'verb)
+                (putp 'verb parse token)
+                (return NIL))
+        (setf token (getToken parse))
+            (if (isa token 'article)
+                (setf token (getToken parse)))
+            (if (isa token 'noun)
+                (putp 'directObj parse token)
+                (return NIL))
+        (setf token (getToken parse))
+            (if (isa token 'prep)
+                (putp 'prep parse token)
+                (return NIL))
+        (setf token (getToken parse))
+            (if (isa token 'article)
+                (setf token (getToken parse)))
+            (if (isa token 'noun)
+                (putp 'indirectObj parse token)
+                (return NIL))
+            (return T)
+        (setf token (getToken parse))
+            (if (isa token 'prep)
+                (putp 'QualIndirectPrep parse token)
+                (return NIL))
+        (setf token (getToken parse))
+            (if (isa token 'article)
+                (setf token (getToken parse)))
+            (if (isa token 'noun)
+                (putp 'QualIndirectObj parse token)
+                (return NIL))
+        (setf token (getToken parse))
+            (if (isa token 'comparator)
+                (putp 'Comparator parse token)
+                (return NIL))
+        (setf token (getToken parse))
+            (if (isa token 'prep)
+                (putp 'prep parse token)
+                (return NIL))
+    (return T)) 
+)
+CHECKREQUEST
+
+
+;;;resetPartsOfSpeech
+;;;Parameters:
+;;;     parse: Parse-object populated with a request.
+;;;     partOfSpeech1-N: Variable number of parts of speech.
+;;;Purpose:
+;;;     This function resets the value for each of the specified parts of speech to NIL using putp.
+
+(defun resetPartsOfSpeech (parse &rest partsOfSpeech)
+         (dolist (resetWords partsOfSpeech T)
+         (putp NIL parse resetWords)
+         )
+)
+RESETPARTSOFSPEECH
+
+
+;;;set_isa
+;;;Parameters:
+;;;     partOfSpeech: Type of word being specified.
+;;;     word1-N: Words to be defined.
+;;;Purpose:
+;;;     This macro defines each word in the list of words to the specified partOfSpeech in the dictionary.
+
+(defmacro set_isa (partOfSpeech &rest words)
+        (dolist (word words T)
+        (putp word word-dict partOfSpeech)
+        )
+)
+SET_ISA
+
+
+;;;isa
+;;;Parameters:
+;;;     word: Word whose part of speech needs to be defined.
+;;;     partOfSpeech: Word type to be checked against.
+;;;Purpose:
+;;;     Returns T if the specified word is that specified partOfSpeech; otherwise, NIL is returned.
+
+(defun isa (word partOfSpeech)
+     (let ((wordIs (getp word word-dict)))
+           (eql wordIs partOfSpeech)
+     )
+)
+ISA
+
+;; Loaded file p4Lisp.txt
+T
+[3]> (load "p4LispRun.txt" :echo T :print T)
+;; Loading file p4LispRun.txt ...
+;;; p4LispRun.txt - run the student's code
+;;; Use set_isa to set the part of speech for each of the words.
+(set_isa article a an the)
+T
+
+(set_isa noun movies movie rentals rental customer customers)
+T
+
+(set_isa noun ID title genre rating custNr name state date number gender)
+T
+
+(set_isa verb count select show print)
+T
+
+(set_isa prep of with to in for)
+T
+
+(set_isa comparator equal after before)
+T
+
+(set_isa adjective horror scifi romance comedy action male female g pg pg13 r x )
+T
+
+
+(putp 'movie table-ht 'movie)
+MOVIE
+
+(putp 'movies table-ht 'movie)
+MOVIE
+
+(putp 'rental table-ht 'rental)
+RENTAL
+
+(putp 'rentals table-ht 'rental)
+RENTAL
+
+(putp 'customer table-ht 'customer)
+CUSTOMER
+
+(putp 'customers table-ht 'customer)
+CUSTOMER
+
+
+ ;;;
+ ;;; first form:  verb [article] directObj prep [article] indirectObj
+ ;;;
+ (processRequest '(count the number of rentals ))
+ ******************************************************************
+  (COUNT THE NUMBER OF RENTALS)
+    checkRequest returned T
+    verb= COUNT
+    directObj= NUMBER
+    prep= OF
+    indirectObj= RENTALS
+T
+  
+ 
+ (processRequest '(count the number of movies ))
+ ******************************************************************
+  (COUNT THE NUMBER OF MOVIES)
+    checkRequest returned T
+    verb= COUNT
+    directObj= NUMBER
+    prep= OF
+    indirectObj= MOVIES
+T
+ 
+ 
+ (processRequest '(show ID for movies ))
+ ******************************************************************
+  (SHOW ID FOR MOVIES)
+    checkRequest returned T
+    verb= SHOW
+    directObj= ID
+    prep= FOR
+    indirectObj= MOVIES
+T
+ 
+ 
+ ;;;
+ ;;; second form: verb [article] directObj prep [article] indirectObj 
+ ;;;                   prep [article] qualIndirectObj comparator [prep] qualValue
+ ;;;
+ (processRequest '(show the title of movies with rating equal to PG13))
+ ******************************************************************
+  (SHOW THE TITLE OF MOVIES WITH RATING EQUAL TO PG13)
+    checkRequest returned T
+    verb= SHOW
+    directObj= TITLE
+    prep= OF
+    indirectObj= MOVIES
+T
+
+  
+ (processRequest '(Count the number of rentals with date after 2018-10-01))
+ ******************************************************************
+  (COUNT THE NUMBER OF RENTALS WITH DATE AFTER 2018-10-01)
+    checkRequest returned T
+    verb= COUNT
+    directObj= NUMBER
+    prep= OF
+    indirectObj= RENTALS
+T
+
+
+ (processRequest '(Show the title for the movie with ID equal to HP001))
+ ******************************************************************
+  (SHOW THE TITLE FOR THE MOVIE WITH ID EQUAL TO HP001)
+    checkRequest returned T
+    verb= SHOW
+    directObj= TITLE
+    prep= FOR
+    indirectObj= MOVIE
+T
+ 
+
+ (processRequest '(Select the name of the customer with custNr equal to 111))
+ ******************************************************************
+  (SELECT THE NAME OF THE CUSTOMER WITH CUSTNR EQUAL TO 111)
+    checkRequest returned T
+    verb= SELECT
+    directObj= NAME
+    prep= OF
+    indirectObj= CUSTOMER
+T
+ 
+ 
+ ;;;
+ ;;;  Examples with NOT
+ ;;;
+ (processRequest '(Show title for movies with rating not equal to G))
+ ******************************************************************
+  (SHOW TITLE FOR MOVIES WITH RATING NOT EQUAL TO G)
+    checkRequest returned T
+    verb= SHOW
+    directObj= TITLE
+    prep= FOR
+    indirectObj= MOVIES
+T
+ 
+
+ ;;; 
+ ;;; Some invalid requests
+ ;;;
+ (processRequest '(Show title for videos with a rating of G))
+ ******************************************************************
+  (SHOW TITLE FOR VIDEOS WITH A RATING OF G)
+    checkRequest returned NIL
+    verb= SHOW
+    directObj= TITLE
+    prep= FOR
+    indirectObj= MOVIES
+NIL
+
+ (processRequest '(Show title for movies having a rating of G))
+ ******************************************************************
+  (SHOW TITLE FOR MOVIES HAVING A RATING OF G)
+    checkRequest returned T
+    verb= SHOW
+    directObj= TITLE
+    prep= FOR
+    indirectObj= MOVIES
+T
+
+ (processRequest '(Show title for movies with a rating of G or PG))
+ ******************************************************************
+  (SHOW TITLE FOR MOVIES WITH A RATING OF G OR PG)
+    checkRequest returned T
+    verb= SHOW
+    directObj= TITLE
+    prep= FOR
+    indirectObj= MOVIES
+T
+ 
+   
+ ;;; see if doing extra credit, return if not
+ (if (NOT(EQL doingExtra 'EC2))
+    (abort))
+[4]> 
