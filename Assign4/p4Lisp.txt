@@ -1,0 +1,147 @@
+;;;checkRequest
+;;;Parameters:
+;;;     parse: Parse-object populated with a request.
+;;;Purpose:
+;;;     This function checks for a valid request according to the program's grammar standards. If the request is valid, T is returned. If not, NIL is returned. Also saves the identified parts of speech.
+
+(defun checkRequest (parse)
+    (PROG ()
+(setf token (getToken parse))
+        (if (not (isa token 'verb)) 
+        	(return NIL) 
+        	(putp 'verb parse token))
+
+        (if (not (checkNP parse 'directObj))
+        	(return NIL))
+
+        (setf token (getToken parse))
+        (if (not (isa token 'prep))
+        	(return NIL) 
+        	(putp 'prep parse token))
+
+        (if (not (checkNP parse 'indirectObj))
+        	(return NIL))
+
+       	(setf token (getToken parse))
+       	(if (NULL token)
+       		(return T) )
+
+       	(if (not (isa token 'prep))
+       		(return NIL)
+       		(putp 'QualIndirectPrep parse token))
+
+       	(if (not (checkNP parse 'QualIndirectObj))
+       		(return NIL)
+       	)
+
+       	(if (not (NULL (getp 'adjective parse)))
+       		(let ( (qualityValue (getp 'adjective parse)) )
+       			(putp 'QualValue parse qualityValue)
+       			(putp 'QualVerb parse 'equal)
+       			(putp 'comparator parse 'equal)
+       			(putp 'QualPrep parse 'to)
+       			(return T)
+       		)
+       	)
+     	
+       	(setf token (getToken parse))
+       	(if (eql token 'not)
+       		(let ()
+       			(putp 'NotQual parse token)
+       			(setf token (getToken parse))
+       		) 
+       	)
+
+       	(if (not (isa token 'comparator))
+       		(return NIL)
+			(putp 'comparator parse token))
+
+       	(setf token (getToken parse))
+       	(if (isa token 'prep)
+       		(let () 
+       			(putp 'QualPrep parse token)
+       			(setf token (getToken parse)))
+       	)
+
+       	(if (NULL token)
+       		(return NIL)
+       		(putp 'QualValue parse token))
+          
+       	(return T)
+	)
+)
+
+;;;resetPartsOfSpeech
+;;;Parameters:
+;;;     parse: Parse-object populated with a request.
+;;;     partOfSpeech1-N: Variable number of parts of speech.
+;;;Purpose:
+;;;     This function resets the value for each of the specified parts of speech to NIL using putp.
+
+(defun resetPartsOfSpeech (parse &rest partsOfSpeech)
+         (dolist (resetWords partsOfSpeech T)
+         (putp NIL parse resetWords)
+         )
+)
+
+;;;set_isa
+;;;Parameters:
+;;;     partOfSpeech: Type of word being specified.
+;;;     word1-N: Words to be defined.
+;;;Purpose:
+;;;     This macro defines each word in the list of words to the specified partOfSpeech in the dictionary.
+
+(defmacro set_isa (partOfSpeech &rest words)
+        (dolist (word words T)
+        (putp word word-dict partOfSpeech)
+        )
+)
+
+;;;isa
+;;;Parameters:
+;;;     word: Word whose part of speech needs to be defined.
+;;;     partOfSpeech: Word type to be checked against.
+;;;Purpose:
+;;;     Returns T if the specified word is that specified partOfSpeech; otherwise, NIL is returned.
+
+(defun isa (word partOfSpeech)
+     (let ((wordIs (getp word word-dict)))
+           (eql wordIs partOfSpeech)
+     )
+)
+
+;;; checkNP 
+;;;    Parameters:
+;;;       parse - a hash table. It contains the request to parse, 
+;;;               current cursor position (relative to zero), and each 
+;;;               part of speech
+;;;       objNm - a type of noun phrase. Please see grammar from checkRequest
+;;;               for more information
+;;;    Purpose:
+;;;       - checks if the next word is an article; if it is, check if the next word
+;;;         is a an article; if it is, set adjective property and check if the next
+;;;         word is a noun and set property, returns NIL if it's not
+(defun checkNP (parse objNm)
+    (PROG (token)
+        (setf saveCursor (getCursor parse))
+
+        (setf token (getToken parse))
+
+        (if (isa token 'article)
+            (setf token (getToken parse)) )
+
+        (if (isa token 'adjective)
+            (let ()
+                (putp 'adjective parse token)
+                (setf token (getToken parse))
+            )
+        )
+
+        (if (not (isa token 'noun))
+            (return NIL) )
+        
+        (putp objNm parse token)
+
+        (return T)
+    )
+)
