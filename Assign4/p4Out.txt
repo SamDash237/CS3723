@@ -1,4 +1,5 @@
-gnu021:~/cs3723/assign4> clisp
+fox06:~> cd ~/cs3723/assign4
+fox06:~/cs3723/assign4> clisp
   i i i i i i i       ooooo    o        ooooooo   ooooo   ooooo
   I I I I I I I      8     8   8           8     8     o  8    8
   I  \ `+' /  I      8         8           8     8        8    8
@@ -17,7 +18,167 @@ Copyright (c) Sam Steingold, Bruno Haible 2001-2010
 
 Type :h and hit Enter for context help.
 
-[1]> (load "p4LispDef.txt" :echo T :print T)
+[1]> (load "p4Lisp.txt" :echo T :print T)
+;; Loading file p4Lisp.txt ...
+;;;checkRequest
+;;;Parameters:
+;;;     parse: Parse-object populated with a request.
+;;;Purpose:
+;;;     This function checks for a valid request according to the program's gram                                                                                                                               mar standards. If the request is valid, T is returned. If not, NIL is returned.                                                                                                                                Also saves the identified parts of speech.
+
+(defun checkRequest (parse)
+    (PROG ()
+(setf token (getToken parse))
+        (if (not (isa token 'verb))
+                (return NIL)
+                (putp 'verb parse token))
+
+        (if (not (checkNP parse 'directObj))
+                (return NIL))
+
+        (setf token (getToken parse))
+        (if (not (isa token 'prep))
+                (return NIL)
+                (putp 'prep parse token))
+
+        (if (not (checkNP parse 'indirectObj))
+                (return NIL))
+
+        (setf token (getToken parse))
+        (if (NULL token)
+                (return T) )
+
+        (if (not (isa token 'prep))
+                (return NIL)
+                (putp 'QualIndirectPrep parse token))
+
+        (if (not (checkNP parse 'QualIndirectObj))
+                (return NIL)
+        )
+
+        (if (not (NULL (getp 'adjective parse)))
+                (let ( (qualityValue (getp 'adjective parse)) )
+                        (putp 'QualValue parse qualityValue)
+                        (putp 'QualVerb parse 'equal)
+                        (putp 'comparator parse 'equal)
+                        (putp 'QualPrep parse 'to)
+                        (return T)
+                )
+        )
+
+        (setf token (getToken parse))
+        (if (eql token 'not)
+                (let ()
+                        (putp 'NotQual parse token)
+                        (setf token (getToken parse))
+                )
+        )
+
+        (if (not (isa token 'comparator))
+                (return NIL)
+                        (putp 'comparator parse token))
+
+        (setf token (getToken parse))
+        (if (isa token 'prep)
+                (let ()
+                        (putp 'QualPrep parse token)
+                        (setf token (getToken parse)))
+        )
+
+        (if (NULL token)
+                (return NIL)
+                (putp 'QualValue parse token))
+
+        (return T)
+        )
+)
+CHECKREQUEST
+
+
+;;;resetPartsOfSpeech
+;;;Parameters:
+;;;     parse: Parse-object populated with a request.
+;;;     partOfSpeech1-N: Variable number of parts of speech.
+;;;Purpose:
+;;;     This function resets the value for each of the specified parts of speech                                                                                                                                to NIL using putp.
+
+(defun resetPartsOfSpeech (parse &rest partsOfSpeech)
+         (dolist (resetWords partsOfSpeech T)
+         (putp NIL parse resetWords)
+         )
+)
+RESETPARTSOFSPEECH
+
+
+;;;set_isa
+;;;Parameters:
+;;;     partOfSpeech: Type of word being specified.
+;;;     word1-N: Words to be defined.
+;;;Purpose:
+;;;     This macro defines each word in the list of words to the specified partO                                                                                                                               fSpeech in the dictionary.
+
+(defmacro set_isa (partOfSpeech &rest words)
+        (dolist (word words T)
+        (putp word word-dict partOfSpeech)
+        )
+)
+SET_ISA
+
+
+;;;isa
+;;;Parameters:
+;;;     word: Word whose part of speech needs to be defined.
+;;;     partOfSpeech: Word type to be checked against.
+;;;Purpose:
+;;;     Returns T if the specified word is that specified partOfSpeech; otherwis                                                                                                                               e, NIL is returned.
+
+(defun isa (word partOfSpeech)
+     (let ((wordIs (getp word word-dict)))
+           (eql wordIs partOfSpeech)
+     )
+)
+ISA
+
+
+;;; checkNP
+;;;    Parameters:
+;;;       parse - a hash table. It contains the request to parse,
+;;;               current cursor position (relative to zero), and each
+;;;               part of speech
+;;;       objNm - a type of noun phrase. Please see grammar from checkRequest
+;;;               for more information
+;;;    Purpose:
+;;;       - checks if the next word is an article; if it is, check if the next w                                                                                                                               ord
+;;;         is a an article; if it is, set adjective property and check if the n                                                                                                                               ext
+;;;         word is a noun and set property, returns NIL if it's not
+(defun checkNP (parse objNm)
+    (PROG (token)
+        (setf saveCursor (getCursor parse))
+
+        (setf token (getToken parse))
+
+        (if (isa token 'article)
+            (setf token (getToken parse)) )
+
+        (if (isa token 'adjective)
+            (let ()
+                (putp 'adjective parse token)
+                (setf token (getToken parse))
+            )
+        )
+
+        (if (not (isa token 'noun))
+            (return NIL) )
+
+        (putp objNm parse token)
+
+        (return T)
+    )
+)
+CHECKNP
+;; Loaded file p4Lisp.txt
+T
+[2]> (load "p4LispDef.txt" :echo T :print T)
 ;; Loading file p4LispDef.txt ...
 ;;; useful functions for LISP natural language parsing program
 
@@ -33,15 +194,15 @@ Type :h and hit Enter for context help.
 
 
 
-;;; processRequest 
+;;; processRequest
 ;;;    Parameters:
 ;;;       request - a list of words making a request
 ;;;    Purpose:
-;;;       - Sets up necessary information (see below) and invokes the student's checkRequest
-;;;         function.  
-;;;       - Since the student's checkRequest sets the parts of speech, processRequest prints
+;;;       - Sets up necessary information (see below) and invokes the student's                                                                                                                                checkRequest
+;;;         function.
+;;;       - Since the student's checkRequest sets the parts of speech, processRe                                                                                                                               quest prints
 ;;;         those parts of speeach.
-;;;       - Returns T if the request is a valid request.  Otherwise, NIL is returned.
+;;;       - Returns T if the request is a valid request.  Otherwise, NIL is retu                                                                                                                               rned.
 ;;;    Notes:
 ;;;       - Sets the parse-obj hash table to contain the request
 ;;;       - Sets the cursor position to zero.
@@ -50,25 +211,25 @@ Type :h and hit Enter for context help.
 ;;;       - Invokes checkRequest to check for valid syntax and prints
 ;;;         the result.
 ;;;       - Prints the value for each part of speech
-;;;       - Invokes makeDBRequest to generate a database request from the parts of speeach
+;;;       - Invokes makeDBRequest to generate a database request from the parts                                                                                                                                of speeach
 ;;;    Notes:
 ;;;       - Requests will not contain punctuation since
-;;;             -- commas have a meaning in Common LISP associated with backquote
+;;;             -- commas have a meaning in Common LISP associated with backquot                                                                                                                               e
 ;;;             -- periods are used for dotted pairs
-;;;    
+;;;
 
 (defun processRequest(request)
     (PROG (result)
         ;;; Save the request in parse-obj.
-        (putp 'request parse-obj request) 
+        (putp 'request parse-obj request)
         ;;; Set the cursor position to 0.
         (putp 'cursor parse-obj 0)
- 
+
         ;;; reset the parts of speech to NIL
-        (resetPartsOfSpeech parse-obj 'verb 'directObj 'prep 'indirectObj 'QualIndirectPrep 'QualIndirectObj)
+        (resetPartsOfSpeech parse-obj 'verb 'directObj 'prep 'indirectObj 'QualI                                                                                                                               ndirectPrep 'QualIndirectObj)
         (resetPartsOfSpeech parse-obj 'Comparator 'NotQual 'QualPrep 'QualValue)
-        
-        (format T "~% ******************************************************************")
+
+        (format T "~% **********************************************************                                                                                                                               ********")
         (format T "~%  ~a" request)
         (setf result (checkRequest parse-Obj))
         (format T "~%    checkRequest returned ~a" result)
@@ -76,18 +237,18 @@ Type :h and hit Enter for context help.
         (format T "~%    directObj= ~a" (getp 'directObj parse-obj))
         (format T "~%    prep= ~a" (getp 'prep parse-obj))
         (format T "~%    indirectObj= ~a" (getp 'indirectObj parse-obj))
-        
+
         ;;; if we have a qual indirect, show it
         (cond ((or  (getp 'QualIndirectPrep parse-obj)
                     (getp 'QualIndirectObj parse-obj))
-                (format T "~%    QualIndirectPrep= ~a" (getp 'QualIndirectPrep parse-obj))
-                (format T "~%    QualIndirectObj= ~a" (getp 'QualIndirectObj parse-obj))
+                (format T "~%    QualIndirectPrep= ~a" (getp 'QualIndirectPrep p                                                                                                                               arse-obj))
+                (format T "~%    QualIndirectObj= ~a" (getp 'QualIndirectObj par                                                                                                                               se-obj))
         ))
         ;;; if we have qual, show it
         (cond ((or  (getp 'Comparator parse-obj)
                     (getp 'NotQual parse-obj)
                     (getp 'QualPrep parse-obj)
-                    (getp 'QualValue parse-obj))    
+                    (getp 'QualValue parse-obj))
                 (if (getp 'NotQual parse-obj)
                      (format T "~%    NotQual = ~a" (getp 'NotQual parse-obj)))
                 (format T "~%    Comparator= ~a" (getp 'Comparator parse-obj))
@@ -95,20 +256,20 @@ Type :h and hit Enter for context help.
                 (format T "~%    QualValue= ~a" (getp 'QualValue parse-obj))
         ))
         (if (not result) (return result))
-        
+
         ;;; see if doing extra credit, return if not
         (if (NOT doingExtra)
             (return result))
-        
+
         ;;; generate the SQL and show that SQL query
         (setf query (genSQL parse-Obj))
         (format T "~%    DBRequest= ~a" query)
-        
+
         (return result) ) )
 PROCESSREQUEST
 
- 
-;;; putp 
+
+;;; putp
 ;;;    Parameters:
 ;;;       symbol   - symbol to be given the property value
 ;;;       ht       - hash table to store the symbol and its property value
@@ -129,8 +290,8 @@ PROCESSREQUEST
 )
 PUTP
 
-    
-;;; getp 
+
+;;; getp
 ;;;    Parameters:
 ;;;       symbol   - symbol about which we want its property value
 ;;;       ht       - hash table which stores the symbol and its property value
@@ -139,13 +300,13 @@ PUTP
 ;;;       If not found, it returns NIL.
 ;;;    Example Usage:
 ;;;       (getp word word-dict)  would return the partOfSpeech for that word
-;;;       (getp 'request parse-obj)  would return the original request from the parse-obj.
+;;;       (getp 'request parse-obj)  would return the original request from the                                                                                                                                parse-obj.
 (defun getp (symbol ht)
      (gethash symbol ht) )
 GETP
 
-     
-;;; getCursor 
+
+;;; getCursor
 ;;;    Parameters:
 ;;;       parse - the parse object containing a request, cursor position, and
 ;;;               value for each part of speech
@@ -156,7 +317,7 @@ GETP
 GETCURSOR
 
 
-;;; setCursor 
+;;; setCursor
 ;;;    Parameters:
 ;;;       parse - the parse object containing a request, cursor position, and
 ;;;               value for each part of speech
@@ -165,7 +326,7 @@ GETCURSOR
 ;;;       Sets the value of the cursor position (relative to zero) in the
 ;;;       parse object
 ;;;    Notes:
-;;;       If the cursorPosition isn't a numeric, setCursor breaks execution 
+;;;       If the cursorPosition isn't a numeric, setCursor breaks execution
 ;;;       with an ERROR.
 (defun setCursor (parse cursorPosition)
     (if (numberp cursorPosition)
@@ -186,11 +347,11 @@ SETCURSOR
 ;;;    Notes:
 ;;;       This modifies the cursor position after getting the current token
 ;;;       at the old position.
-    
+
 (defun getToken (parse)
     (prog (temp)
-        (setf temp (nth (getp  'cursor parse) (getp  'request parse))) 
-        (setCursor parse (1+ (getp 'cursor parse))) 
+        (setf temp (nth (getp  'cursor parse) (getp  'request parse)))
+        (setCursor parse (1+ (getp 'cursor parse)))
         (return temp) ) )
 GETTOKEN
 
@@ -201,110 +362,10 @@ GETTOKEN
  (setf doingExtra NIL)
 NIL
 
- 
- 
- 
+
+
+
 ;; Loaded file p4LispDef.txt
-T
-[2]> (load "p4Lisp.txt" :echo T :print T)
-;; Loading file p4Lisp.txt ...
-;;;checkRequest
-;;;Parameters:
-;;;     parse: Parse-object populated with a request.
-;;;Purpose:
-;;;     This function checks for a valid request according to the program's grammar standards. If the request is valid, T is returned. If not, NIL is returned. Also saves the identified parts of speech.
-
-(defun checkRequest (parse)
-    (PROG (token)
-        (setf token (getToken parse))
-            (if (isa token 'verb)
-                (putp 'verb parse token)
-                (return NIL))
-        (setf token (getToken parse))
-            (if (isa token 'article)
-                (setf token (getToken parse)))
-            (if (isa token 'noun)
-                (putp 'directObj parse token)
-                (return NIL))
-        (setf token (getToken parse))
-            (if (isa token 'prep)
-                (putp 'prep parse token)
-                (return NIL))
-        (setf token (getToken parse))
-            (if (isa token 'article)
-                (setf token (getToken parse)))
-            (if (isa token 'noun)
-                (putp 'indirectObj parse token)
-                (return NIL))
-            (return T)
-        (setf token (getToken parse))
-            (if (isa token 'prep)
-                (putp 'QualIndirectPrep parse token)
-                (return NIL))
-        (setf token (getToken parse))
-            (if (isa token 'article)
-                (setf token (getToken parse)))
-            (if (isa token 'noun)
-                (putp 'QualIndirectObj parse token)
-                (return NIL))
-        (setf token (getToken parse))
-            (if (isa token 'comparator)
-                (putp 'Comparator parse token)
-                (return NIL))
-        (setf token (getToken parse))
-            (if (isa token 'prep)
-                (putp 'prep parse token)
-                (return NIL))
-    (return T)) 
-)
-CHECKREQUEST
-
-
-;;;resetPartsOfSpeech
-;;;Parameters:
-;;;     parse: Parse-object populated with a request.
-;;;     partOfSpeech1-N: Variable number of parts of speech.
-;;;Purpose:
-;;;     This function resets the value for each of the specified parts of speech to NIL using putp.
-
-(defun resetPartsOfSpeech (parse &rest partsOfSpeech)
-         (dolist (resetWords partsOfSpeech T)
-         (putp NIL parse resetWords)
-         )
-)
-RESETPARTSOFSPEECH
-
-
-;;;set_isa
-;;;Parameters:
-;;;     partOfSpeech: Type of word being specified.
-;;;     word1-N: Words to be defined.
-;;;Purpose:
-;;;     This macro defines each word in the list of words to the specified partOfSpeech in the dictionary.
-
-(defmacro set_isa (partOfSpeech &rest words)
-        (dolist (word words T)
-        (putp word word-dict partOfSpeech)
-        )
-)
-SET_ISA
-
-
-;;;isa
-;;;Parameters:
-;;;     word: Word whose part of speech needs to be defined.
-;;;     partOfSpeech: Word type to be checked against.
-;;;Purpose:
-;;;     Returns T if the specified word is that specified partOfSpeech; otherwise, NIL is returned.
-
-(defun isa (word partOfSpeech)
-     (let ((wordIs (getp word word-dict)))
-           (eql wordIs partOfSpeech)
-     )
-)
-ISA
-
-;; Loaded file p4Lisp.txt
 T
 [3]> (load "p4LispRun.txt" :echo T :print T)
 ;; Loading file p4LispRun.txt ...
@@ -328,7 +389,7 @@ T
 (set_isa comparator equal after before)
 T
 
-(set_isa adjective horror scifi romance comedy action male female g pg pg13 r x )
+(set_isa adjective horror scifi romance comedy action male female g pg pg13 r x                                                                                                                                )
 T
 
 
@@ -363,8 +424,8 @@ CUSTOMER
     prep= OF
     indirectObj= RENTALS
 T
-  
- 
+
+
  (processRequest '(count the number of movies ))
  ******************************************************************
   (COUNT THE NUMBER OF MOVIES)
@@ -374,8 +435,8 @@ T
     prep= OF
     indirectObj= MOVIES
 T
- 
- 
+
+
  (processRequest '(show ID for movies ))
  ******************************************************************
   (SHOW ID FOR MOVIES)
@@ -385,11 +446,11 @@ T
     prep= FOR
     indirectObj= MOVIES
 T
- 
- 
+
+
  ;;;
- ;;; second form: verb [article] directObj prep [article] indirectObj 
- ;;;                   prep [article] qualIndirectObj comparator [prep] qualValue
+ ;;; second form: verb [article] directObj prep [article] indirectObj
+ ;;;                   prep [article] qualIndirectObj comparator [prep] qualValu                                                                                                                               e
  ;;;
  (processRequest '(show the title of movies with rating equal to PG13))
  ******************************************************************
@@ -399,9 +460,14 @@ T
     directObj= TITLE
     prep= OF
     indirectObj= MOVIES
+    QualIndirectPrep= WITH
+    QualIndirectObj= RATING
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= PG13
 T
 
-  
+
  (processRequest '(Count the number of rentals with date after 2018-10-01))
  ******************************************************************
   (COUNT THE NUMBER OF RENTALS WITH DATE AFTER 2018-10-01)
@@ -410,6 +476,11 @@ T
     directObj= NUMBER
     prep= OF
     indirectObj= RENTALS
+    QualIndirectPrep= WITH
+    QualIndirectObj= DATE
+    Comparator= AFTER
+    QualPrep= TO
+    QualValue= 2018-10-01
 T
 
 
@@ -421,8 +492,13 @@ T
     directObj= TITLE
     prep= FOR
     indirectObj= MOVIE
+    QualIndirectPrep= WITH
+    QualIndirectObj= ID
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= HP001
 T
- 
+
 
  (processRequest '(Select the name of the customer with custNr equal to 111))
  ******************************************************************
@@ -432,9 +508,14 @@ T
     directObj= NAME
     prep= OF
     indirectObj= CUSTOMER
+    QualIndirectPrep= WITH
+    QualIndirectObj= CUSTNR
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= 111
 T
- 
- 
+
+
  ;;;
  ;;;  Examples with NOT
  ;;;
@@ -446,10 +527,16 @@ T
     directObj= TITLE
     prep= FOR
     indirectObj= MOVIES
+    QualIndirectPrep= WITH
+    QualIndirectObj= RATING
+    NotQual = NOT
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= G
 T
- 
 
- ;;; 
+
+ ;;;
  ;;; Some invalid requests
  ;;;
  (processRequest '(Show title for videos with a rating of G))
@@ -460,30 +547,48 @@ T
     directObj= TITLE
     prep= FOR
     indirectObj= MOVIES
+    QualIndirectPrep= WITH
+    QualIndirectObj= RATING
+    NotQual = NOT
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= G
 NIL
 
  (processRequest '(Show title for movies having a rating of G))
  ******************************************************************
   (SHOW TITLE FOR MOVIES HAVING A RATING OF G)
-    checkRequest returned T
+    checkRequest returned NIL
     verb= SHOW
     directObj= TITLE
     prep= FOR
     indirectObj= MOVIES
-T
+    QualIndirectPrep= WITH
+    QualIndirectObj= RATING
+    NotQual = NOT
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= G
+NIL
 
  (processRequest '(Show title for movies with a rating of G or PG))
  ******************************************************************
   (SHOW TITLE FOR MOVIES WITH A RATING OF G OR PG)
-    checkRequest returned T
+    checkRequest returned NIL
     verb= SHOW
     directObj= TITLE
     prep= FOR
     indirectObj= MOVIES
-T
- 
-   
+    QualIndirectPrep= WITH
+    QualIndirectObj= RATING
+    NotQual = NOT
+    Comparator= EQUAL
+    QualPrep= TO
+    QualValue= G
+NIL
+
+
  ;;; see if doing extra credit, return if not
  (if (NOT(EQL doingExtra 'EC2))
     (abort))
-[4]> 
+[4]>
