@@ -112,16 +112,13 @@
 
 ;;; checkNP 
 ;;;    Parameters:
-;;;       parse - a hash table. It contains the request to parse, 
-;;;               current cursor position (relative to zero), and each 
-;;;               part of speech
-;;;       objNm - a type of noun phrase. Please see grammar from checkRequest
-;;;               for more information
+;;;       parse: Parse-object populated with a request.
+;;;       partOfSpeech: Word type to be checked against.
 ;;;    Purpose:
-;;;       - checks if the next word is an article; if it is, check if the next word
-;;;         is a an article; if it is, set adjective property and check if the next
-;;;         word is a noun and set property, returns NIL if it's not
-(defun checkNP (parse objNm)
+;;;       Checks if the next word is an article. If so, it checks if the next word
+;;;       is a an article. If the next word is an article, it sets as adjective and checks if the next
+;;;       word is a noun and sets as property, otherwise NIL is returned.
+(defun checkNP (parse partOfSpeech)
     (PROG (token)
         (setf saveCursor (getCursor parse))
 
@@ -140,7 +137,7 @@
         (if (not (isa token 'noun))
             (return NIL) )
         
-        (putp objNm parse token)
+        (putp partOfSpeech parse token)
 
         (return T)
     )
